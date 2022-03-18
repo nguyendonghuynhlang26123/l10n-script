@@ -8,7 +8,8 @@ Node v16+
 
 ## Setup
 
-`npm install`
+`npm install` \
+Edit config in script-config section
 
 ## Run
 
