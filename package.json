@@ -1,0 +1,11 @@
+{
+  "name": "temp",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "tree-sitter": "^0.20.0",
+    "tree-sitter-cli": "^0.20.6",
+    "tree-sitter-dart": "github:UserNobody14/tree-sitter-dart"
+  }
+}
