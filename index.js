@@ -7,19 +7,19 @@ parser.setLanguage(Dart);
 
 // Script config ---------
 const ROOT_DIRECTORY = __dirname + '/../tixngo-admintool-flutter-2/lib'; // EDIT ME
-const excludeFileNames = ['const.dart'];
+const excludeFileNames = ['const.dart', 'reusable_functions.dart'];
 const excludeFolders = ['test'];
 const rules = [
   // Set of rule functions, which return false if violate
   (text) =>
     // Rule#1: only extract string literal that has "normal" character
-    !/[`@#$%^&*()_+\-=\[\]{};\\|,.<>\/~]/.test(text),
+    !/[`@#$%^&*()_+\-=\[\]{}:;\\|,.<>\/~]/.test(text),
   (text) =>
     // Rule #2: only extract string literal that begin witha a Capital alphabetical letter
     /^[A-Z]/.test(text),
 ];
 const MODE = 'COPY'; // COPY | REPLACE; Copy means script will copy the content to another location, while replace means it will try to modify the input file
-
+const NUMBERING = false; //Disable Numbering when encounter duplicate
 const packageImportStatement = "import 'package:new_admintool/l10n/l10n.dart';"; // EDIT ME
 const replacePrefix = 'context.l10n.';
 // -----------------------------
@@ -28,8 +28,7 @@ const replacePrefix = 'context.l10n.';
 // preprocess and camelize keywords
 const camelize = (str) => {
   return str
-    .toLowerCase()
-    .replace('_', '')
+    .replaceAll('_', ' ')
     .replace(/(?:^\w|[A-Z]|\b\w)/g, function (word, index) {
       return index === 0 ? word.toLowerCase() : word.toUpperCase();
     })
@@ -84,13 +83,16 @@ const readFileAndProcess = (rootDirectory, relativePath, fileName) => {
 
     //Add the first 2 words in the content to make it easier to find
     const first2Words = getFirst2Words(content);
-    key = key + '_' + camelize(first2Words);
+    if (first2Words.toUpperCase() === first2Words) key = key + first2Words;
+    else key = key + '_' + camelize(first2Words);
 
     //Add number if duplicated
-    if (duplicateCount[key]) {
-      duplicateCount[key]++;
-      key += duplicateCount[key].toString();
-    } else duplicateCount[key] = 1;
+    if (NUMBERING) {
+      if (duplicateCount[key]) {
+        duplicateCount[key]++;
+        key += duplicateCount[key].toString();
+      } else duplicateCount[key] = 1;
+    }
     return key;
   };
 
