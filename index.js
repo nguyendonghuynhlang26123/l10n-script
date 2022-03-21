@@ -83,7 +83,7 @@ const readFileAndProcess = (rootDirectory, relativePath, fileName) => {
 
     //Add the first 2 words in the content to make it easier to find
     const first2Words = getFirst2Words(content);
-    if (first2Words.toUpperCase() === first2Words) key = key + first2Words;
+    if (first2Words.toUpperCase() === first2Words) key = key + '_' + first2Words.replaceAll(' ', '');
     else key = key + '_' + camelize(first2Words);
 
     //Add number if duplicated
