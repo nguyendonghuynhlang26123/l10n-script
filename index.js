@@ -6,7 +6,7 @@ const parser = new Parser();
 parser.setLanguage(Dart);
 
 // Script config ---------
-const ROOT_DIRECTORY = __dirname + '/flutter'; // EDIT ME
+const ROOT_DIRECTORY = __dirname + '/../tixngo-admintool-flutter-2/lib'; // EDIT ME
 const excludeFileNames = ['const.dart'];
 const excludeFolders = ['test'];
 const rules = [
@@ -20,7 +20,7 @@ const rules = [
 ];
 const MODE = 'COPY'; // COPY | REPLACE; Copy means script will copy the content to another location, while replace means it will try to modify the input file
 
-const packageImportStatement = "import 'thu vien l10n';"; // EDIT ME
+const packageImportStatement = "import 'package:new_admintool/l10n/l10n.dart';"; // EDIT ME
 const replacePrefix = 'context.l10n.';
 // -----------------------------
 
@@ -28,6 +28,7 @@ const replacePrefix = 'context.l10n.';
 // preprocess and camelize keywords
 const camelize = (str) => {
   return str
+    .toLowerCase()
     .replace('_', '')
     .replace(/(?:^\w|[A-Z]|\b\w)/g, function (word, index) {
       return index === 0 ? word.toLowerCase() : word.toUpperCase();
@@ -103,7 +104,7 @@ const readFileAndProcess = (rootDirectory, relativePath, fileName) => {
       result[key] = stringLiteral.content;
 
       // 1c. Replace it in the source code.
-      console.debug(`Trying to replace '${stringLiteral.content}' with ${replacePrefix + key} `);
+      // console.debug(`Trying to replace '${stringLiteral.content}' with ${replacePrefix + key} `);
       newSourceCode = newSourceCode.replace(`'${stringLiteral.content}'`, replacePrefix + key);
     }
 
@@ -111,8 +112,7 @@ const readFileAndProcess = (rootDirectory, relativePath, fileName) => {
     newSourceCode = packageImportStatement + '\n' + newSourceCode;
 
     // 3. Export changes to file
-    if (MODE === 'REPLACE')
-      fs.writeFileSync(`${rootDirectory}/${relativePath}/${fileName}.dart`, newSourceCode.toString());
+    if (MODE === 'REPLACE') fs.writeFileSync(`${rootDirectory}/${relativePath}/${fileName}.dart`, newSourceCode.toString());
     else {
       const directory = `./output/${relativePath}`;
       if (!fs.existsSync(directory)) fs.mkdirSync(directory, { recursive: true }); // Try to create directory if needed
@@ -122,18 +122,17 @@ const readFileAndProcess = (rootDirectory, relativePath, fileName) => {
   return result;
 };
 
-const loopThroughAllFilesInDirectory = (rootDirectory, currentPath = '.') => {
-  let outputArb = {};
+const loopThroughAllFilesInDirectory = (rootDirectory, currentPath = '.', outputArb = {}) => {
   const files = fs.readdirSync(`${rootDirectory}/${currentPath}`, { withFileTypes: true });
 
   for (let f of files) {
     //If this is a directory, recursively jump to it
-    if (f.isDirectory() && !excludeFolders.includes(f.name))
-      outputArb = loopThroughAllFilesInDirectory(rootDirectory, `${currentPath}/${f.name}`);
+    if (f.isDirectory() && !excludeFolders.includes(f.name)) outputArb = loopThroughAllFilesInDirectory(rootDirectory, `${currentPath}/${f.name}`, outputArb);
     else {
       const [fileName, fileType] = f.name.split('.');
       if (fileType === 'dart' && !excludeFileNames.includes(f.name)) {
         const arbData = readFileAndProcess(rootDirectory, currentPath, fileName);
+
         outputArb = { ...outputArb, ...arbData };
       }
     }
@@ -143,4 +142,4 @@ const loopThroughAllFilesInDirectory = (rootDirectory, currentPath = '.') => {
 };
 
 const arb = loopThroughAllFilesInDirectory(ROOT_DIRECTORY);
-fs.writeFileSync('./output.arb', JSON.stringify(arb, 2));
+fs.writeFileSync('./output.arb', JSON.stringify(arb, null, 4));
