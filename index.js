@@ -7,16 +7,17 @@ parser.setLanguage(Dart);
 
 // Script config ---------
 const ROOT_DIRECTORY = __dirname + '/../tixngo-admintool-flutter-2/lib'; // EDIT ME
-const excludeFileNames = ['const.dart', 'reusable_functions.dart'];
-const excludeFolders = ['test'];
+const excludeFileNames = ['const.dart'];
+const excludeFolders = ['test', 'bloc', 'repositories', 'view_models', 'view_model', 'model'];
+const includeFunctions = ['Widget build(BuildContext context)'];
 const rules = [
   // Set of rule functions, which return false if violate
-  (text) =>
-    // Rule#1: only extract string literal that has "normal" character
-    !/[`@#$%^&*()_+\-=\[\]{}:;\\|,.<>\/~]/.test(text),
-  (text) =>
-    // Rule #2: only extract string literal that begin witha a Capital alphabetical letter
-    /^[A-Z]/.test(text),
+  // (text) =>
+  //   // Rule#1: only extract string literal that has "normal" character
+  //   !/[`@#$%^&*()_+\-=\[\]{}:;\\|,<>\/~]/.test(text),
+  // (text) =>
+  //   // Rule #2: only extract string literal that begin witha a Capital alphabetical letter
+  //   /^[A-Z]/.test(text),
 ];
 const MODE = 'COPY'; // COPY | REPLACE; Copy means script will copy the content to another location, while replace means it will try to modify the input file
 const NUMBERING = false; //Disable Numbering when encounter duplicate
@@ -43,21 +44,26 @@ const getFirst2Words = (str) => str.split(' ').slice(0, 2).join(' ');
  */
 const bfsFindStringLiteralsInTree = (node, context = []) => {
   let data = [];
-  const { type, text: rawText, children } = node;
+  const { type, children } = node;
 
   // Ignore import/export string
   if (type === 'import_or_export') return [];
   else if (type === 'class_definition') context.push(node.firstNamedChild.text);
-  else if (type === 'string_literal') {
-    let text = rawText.replaceAll("'", '');
+  else if (type === 'function_body' && includeFunctions.includes(node.previousSibling.text)) {
+    const nodes = node.descendantsOfType('string_literal');
 
-    if (type) for (const rule of rules) if (!rule(text)) return [];
-    if (node.previousSibling?.type === 'label') context.push(node.previousSibling.firstChild.text);
-    data.push({
-      content: text,
-      context: context,
-    });
-    return data;
+    for (let n of nodes) {
+      let text = n.text.replaceAll("'", '');
+      console.log('log ~ file: index.js ~ line 55 ~ bfsFindStringLiteralsInTree ~ text', text);
+
+      if (type) for (const rule of rules) if (!rule(text)) return [];
+      if (node.previousSibling?.type === 'label') context.push(node.previousSibling.firstChild.text);
+      data.push({
+        content: text,
+        context: context,
+      });
+      return data;
+    }
   }
 
   for (const child of children) {
@@ -143,5 +149,12 @@ const loopThroughAllFilesInDirectory = (rootDirectory, currentPath = '.', output
   return outputArb;
 };
 
-const arb = loopThroughAllFilesInDirectory(ROOT_DIRECTORY);
-fs.writeFileSync('./output.arb', JSON.stringify(arb, null, 4));
+const arb = loopThroughAllFilesInDirectory(ROOT_DIRECTORY, '.', { '@@locale': 'en' });
+fs.mkdirSync('./output/l10n/arb', { recursive: true });
+fs.writeFileSync('./output/l10n/arb/app_en.arb', JSON.stringify(arb, null, 2));
+
+const sourceCode = fs.readFileSync(`test.dart`).toString();
+const tree = parser.parse(sourceCode);
+console.log('log ~ file: index.js ~ line 154 ~ tree', tree.rootNode.toString());
+const data = bfsFindStringLiteralsInTree(tree.rootNode, []);
+console.log('log ~ file: index.js ~ line 156 ~ data', data);
