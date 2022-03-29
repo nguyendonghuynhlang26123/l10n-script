@@ -9,15 +9,20 @@ parser.setLanguage(Dart);
 const ROOT_DIRECTORY = __dirname + '/../tixngo-admintool-flutter-2/lib'; // EDIT ME
 const excludeFileNames = ['const.dart'];
 const excludeFolders = ['test', 'bloc', 'repositories', 'view_models', 'view_model', 'model'];
+const excludeTexts = ['YYYY-MM-DD', 'HH:MM'];
 const includeFunctions = ['Widget build(BuildContext context)'];
+const articles = ['in', 'on', 'at', 'a', 'an', 'of', 'to', 'the', 'be', 'is', 'are']; //Key has meaning by remove articles
 const rules = [
   // Set of rule functions, which return false if violate
+  (text) =>
+    // Rule#1: only extract string literal that has "normal" character
+    !/[`@#$^&*_+\=\[\]{}|<>\/~]/.test(text),
+  (text) =>
+    // Rule #2: only extract string literal that begin witha a Capital alphabetical letter
+    /^[A-Z]/.test(text),
   // (text) =>
-  //   // Rule#1: only extract string literal that has "normal" character
-  //   !/[`@#$%^&*()_+\-=\[\]{}:;\\|,<>\/~]/.test(text),
-  // (text) =>
-  //   // Rule #2: only extract string literal that begin witha a Capital alphabetical letter
-  //   /^[A-Z]/.test(text),
+  //   // Rule #3: avoid constant!
+  //   text.replaceAll('\\n', '') !== text.replaceAll('\\n', '').toUpperCase(),
 ];
 const MODE = 'COPY'; // COPY | REPLACE; Copy means script will copy the content to another location, while replace means it will try to modify the input file
 const NUMBERING = false; //Disable Numbering when encounter duplicate
@@ -35,7 +40,18 @@ const camelize = (str) => {
     })
     .replace(/\s+/g, '');
 };
-const getFirst2Words = (str) => str.split(' ').slice(0, 2).join(' ');
+const getFirst2Words = (str) => {
+  // Extract 2 first meaning words
+  const nums = 2;
+  const words = str.split(' ');
+  let result = [];
+  for (let i = 0; i < words.length; i++) {
+    if (result.length >= nums) break;
+
+    if (!/[`@#$^&*_!+\-=\[\]{}()|<>\\\/~:'".]/.test(words[i]) && !articles.includes(words[i].toLowerCase())) result.push(words[i]);
+  }
+  return result.join(' ');
+};
 
 /**
  * Recursively loop through all nodes of the source code tree using BFS approach.
@@ -54,16 +70,19 @@ const bfsFindStringLiteralsInTree = (node, context = []) => {
 
     for (let n of nodes) {
       let text = n.text.replaceAll("'", '');
-      console.log('log ~ file: index.js ~ line 55 ~ bfsFindStringLiteralsInTree ~ text', text);
+      if (!text || text === ' ' || excludeTexts.includes(text)) continue;
 
-      if (type) for (const rule of rules) if (!rule(text)) return [];
+      let isViolated = false;
+      if (type) for (const rule of rules) if (!rule(text)) isViolated = true;
+      if (isViolated) continue;
+
       if (node.previousSibling?.type === 'label') context.push(node.previousSibling.firstChild.text);
       data.push({
         content: text,
         context: context,
       });
-      return data;
     }
+    return data;
   }
 
   for (const child of children) {
@@ -89,7 +108,8 @@ const readFileAndProcess = (rootDirectory, relativePath, fileName) => {
 
     //Add the first 2 words in the content to make it easier to find
     const first2Words = getFirst2Words(content);
-    if (first2Words.toUpperCase() === first2Words) key = key + '_' + first2Words.replaceAll(' ', '');
+    if (first2Words === '' || first2Words.length > 25) key = key;
+    else if (first2Words.toUpperCase() === first2Words) key = key + '_' + first2Words.replaceAll(' ', '');
     else key = key + '_' + camelize(first2Words);
 
     //Add number if duplicated
@@ -150,11 +170,6 @@ const loopThroughAllFilesInDirectory = (rootDirectory, currentPath = '.', output
 };
 
 const arb = loopThroughAllFilesInDirectory(ROOT_DIRECTORY, '.', { '@@locale': 'en' });
+console.log('log ~ file: index.js ~ line 153 ~ arb', arb);
 fs.mkdirSync('./output/l10n/arb', { recursive: true });
 fs.writeFileSync('./output/l10n/arb/app_en.arb', JSON.stringify(arb, null, 2));
-
-const sourceCode = fs.readFileSync(`test.dart`).toString();
-const tree = parser.parse(sourceCode);
-console.log('log ~ file: index.js ~ line 154 ~ tree', tree.rootNode.toString());
-const data = bfsFindStringLiteralsInTree(tree.rootNode, []);
-console.log('log ~ file: index.js ~ line 156 ~ data', data);
